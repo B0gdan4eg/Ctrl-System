@@ -1,0 +1,127 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+venv/
+ENV/
+env/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.spyderproject
+.spyproject
+
+# Logs
+logs/
+*.log
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Model weights and checkpoints
+*.pth
+*.pt
+*.h5
+*.ckpt
+*.weights
+best_model.pth
+checkpoint.pth
+
+# Data and results
+data/
+dataset/
+datasets/
+images/
+results/
+output/
+outputs/
+temp/
+tmp/
+*.png
+*.jpg
+*.jpeg
+*.tif
+*.tiff
+*.bmp
+*.gif
+*.webp
+!docs/**/*.png
+!docs/**/*.jpg
+
+# Camera snapshots
+camera_*.png
+camera_*.jpg
+snapshot_*.png
+snapshot_*.jpg
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# PyTorch
+*.pth.tar
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
+
+# Documentation builds
+docs/_build/
+site/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Temporary files
+*.tmp
+*.temp
+*.cache
