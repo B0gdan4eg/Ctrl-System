@@ -21,6 +21,13 @@ from .defect_detection import (
     create_defect_heatmap
 )
 
+from .camera import (
+    CameraCapture,
+    CameraManager,
+    CameraSnapshot,
+    CameraCalibration
+)
+
 __all__ = [
     'apply_histogram_normalization',
     'preprocess_for_detection',
@@ -31,5 +38,9 @@ __all__ = [
     'predict_defects',
     'visualize_defects',
     'calculate_defect_statistics',
-    'create_defect_heatmap'
+    'create_defect_heatmap',
+    'CameraCapture',
+    'CameraManager',
+    'CameraSnapshot',
+    'CameraCalibration'
 ]

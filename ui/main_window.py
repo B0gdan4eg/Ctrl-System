@@ -83,6 +83,12 @@ class DefectDetectionApp(QMainWindow):
         self.original_viewer = ImageViewer("Исходное изображение")
         self.tabs.addTab(self.original_viewer, "🖼️ Оригинал")
         
+        # Tab 3: Камера
+        from .widgets.camera_widget import CameraWidget
+        self.camera_widget = CameraWidget()
+        self.camera_widget.snapshot_taken.connect(self.on_camera_snapshot)
+        self.tabs.addTab(self.camera_widget, "📷 Камера")
+        
         right_layout.addWidget(self.tabs)
         
         # Добавляем панели в splitter
@@ -300,3 +306,35 @@ class DefectDetectionApp(QMainWindow):
                     "Ошибка",
                     "Не удалось сохранить файл"
                 )
+    
+    def on_camera_snapshot(self, snapshot):
+        """
+        Обработчик снимка с камеры
+        
+        Args:
+            snapshot: Изображение с камеры
+        """
+        import tempfile
+        from datetime import datetime
+        
+        # Создаем временный файл
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        temp_path = Path(tempfile.gettempdir()) / f"camera_snapshot_{timestamp}.png"
+        
+        # Сохраняем снимок
+        import cv2
+        cv2.imwrite(str(temp_path), snapshot)
+        
+        # Устанавливаем как текущее изображение
+        self.current_image_path = temp_path
+        self.control_panel.set_file_name(f"📷 {temp_path.name}")
+        self.stats_panel.log(f"📷 Получен снимок с камеры: {temp_path.name}")
+        
+        # Отображаем в оригинале
+        self.original_viewer.display_image(snapshot)
+        
+        # Включаем обработку
+        self.control_panel.set_processing_enabled(True)
+        
+        # Переключаемся на вкладку "Оригинал"
+        self.tabs.setCurrentIndex(1)

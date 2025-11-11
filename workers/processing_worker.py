@@ -186,4 +186,3 @@ class ProcessingWorker(QThread):
             'has_defects': defect_pixels > 0,
             'defect_pixels': int(defect_pixels)
         }
-        
