@@ -182,6 +182,8 @@ class CameraWidget(QWidget):
             self.info_label.setText("❌ Камера не выбрана")
             return
         
+        self.info_label.setText(f"🔄 Запуск камеры {camera_id}...")
+        
         # Создаем поток камеры
         self.camera_thread = CameraCapture(camera_id)
         self.camera_thread.frame_captured.connect(self.on_frame_captured)
@@ -192,7 +194,10 @@ class CameraWidget(QWidget):
         self.preview_btn.setText("⏸️ Остановить превью")
         self.snapshot_btn.setEnabled(True)
         self.camera_combo.setEnabled(False)
-        self.info_label.setText("✅ Камера активна")
+        
+        # Ждем немного и проверяем
+        from PySide6.QtCore import QTimer
+        QTimer.singleShot(1000, self.check_preview_status)
     
     def stop_preview(self):
         """Остановка превью"""
@@ -210,25 +215,34 @@ class CameraWidget(QWidget):
     
     def on_frame_captured(self, frame):
         """Обработка полученного кадра"""
+        if frame is None:
+            return
+            
         self.current_frame = frame.copy()
         
         # Применяем настройки
         processed = self.apply_settings(frame)
         
-        # Конвертируем для отображения
+        # Конвертируем BGR -> RGB для Qt
         rgb_image = cv2.cvtColor(processed, cv2.COLOR_BGR2RGB)
         h, w, ch = rgb_image.shape
         bytes_per_line = ch * w
         
+        # Создаем QImage
         qt_image = QImage(
-            rgb_image.data, w, h,
+            rgb_image.data.tobytes(),
+            w, h,
             bytes_per_line,
             QImage.Format.Format_RGB888
         )
         
+        # Создаем pixmap и масштабируем
         pixmap = QPixmap.fromImage(qt_image)
+        
+        # Получаем размер label с учетом соотношения сторон
+        label_size = self.preview_label.size()
         scaled_pixmap = pixmap.scaled(
-            self.preview_label.size(),
+            label_size,
             Qt.AspectRatioMode.KeepAspectRatio,
             Qt.TransformationMode.SmoothTransformation
         )
@@ -292,6 +306,14 @@ class CameraWidget(QWidget):
         """Обработчик ошибок камеры"""
         self.info_label.setText(f"❌ Ошибка: {error_msg}")
         self.stop_preview()
+    
+    def check_preview_status(self):
+        """Проверка статуса превью"""
+        if self.is_preview_active:
+            if self.current_frame is not None:
+                self.info_label.setText(f"✅ Камера активна ({self.current_frame.shape[1]}x{self.current_frame.shape[0]})")
+            else:
+                self.info_label.setText("⚠️ Камера запущена, но кадры не поступают")
     
     def get_current_frame(self):
         """Возвращает текущий кадр с настройками"""

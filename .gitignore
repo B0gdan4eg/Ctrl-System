@@ -63,7 +63,7 @@ output/
 outputs/
 temp/
 tmp/
-*.png
+
 *.jpg
 *.jpeg
 *.tif
