@@ -5,16 +5,19 @@ Copyright (c) 2024 Defect Detection System
 Licensed under the MIT License. See LICENSE file for details.
 """
 
+import time
+import traceback
 import cv2
 import numpy as np
-from PySide6.QtCore import QThread, Signal
+from PySide6.QtCore import QThread, Signal, Qt
 
-from core.camera import CameraCapture
+from core.cameras.camera import CameraCapture
 from core import (
     convert_to_grayscale,
     find_top_zones,
     apply_histogram_normalization,
     preprocess_for_detection,
+    restore_mask_letterbox,
     predict_defects
 )
 
@@ -52,10 +55,13 @@ class RealtimeCameraWorker(QThread):
             
             # Запускаем камеру
             self.camera_thread = CameraCapture(self.camera_id)
-            self.camera_thread.frame_captured.connect(self.process_frame)
+            self.camera_thread.frame_captured.connect(
+                self.process_frame,
+                Qt.ConnectionType.QueuedConnection
+            )
             self.camera_thread.error.connect(self.on_camera_error)
             self.camera_thread.start()
-            
+
             self.is_running = True
             self.progress.emit("✅ Камера запущена. Обработка кадров...")
             
@@ -63,7 +69,6 @@ class RealtimeCameraWorker(QThread):
             self.camera_thread.wait()
             
         except Exception as e:
-            import traceback
             self.error.emit(f"Ошибка: {str(e)}\n{traceback.format_exc()}")
     
     def process_frame(self, frame):
@@ -85,7 +90,6 @@ class RealtimeCameraWorker(QThread):
             return
         
         try:
-            import time
             start_time = time.time()
             
             # Конвертация в grayscale
@@ -116,20 +120,20 @@ class RealtimeCameraWorker(QThread):
                     continue
                 
                 roi = img_gray[y:y+h, x:x+w].copy()
-                
+
                 # Нормализация
                 if self.params.get('apply_hist_norm', True):
                     roi = apply_histogram_normalization(
                         roi,
                         std_range=self.params['std_range']
                     )
-                
-                # Предобработка
-                roi_processed = preprocess_for_detection(
+
+                # Предобработка с letterbox resize
+                roi_processed, pad_info = preprocess_for_detection(
                     roi,
                     target_size=(self.params['model_size'], self.params['model_size'])
                 )
-                
+
                 # Детекция
                 defect_mask = predict_defects(
                     self.model,
@@ -137,19 +141,14 @@ class RealtimeCameraWorker(QThread):
                     self.device,
                     threshold=self.params['detection_threshold']
                 )
-                
-                # Resize маски
-                defect_mask_resized = cv2.resize(
-                    defect_mask,
-                    (w, h),
-                    interpolation=cv2.INTER_NEAREST
-                )
-                
+
+                defect_mask_resized = restore_mask_letterbox(defect_mask, pad_info)
+
                 # Визуализация дефектов
                 if np.sum(defect_mask_resized) > 0:
                     zones_with_defects += 1
                     all_defects += np.sum(defect_mask_resized > 0)
-                    
+
                     # Красное наложение
                     mask_colored = np.zeros_like(result[y:y+h, x:x+w])
                     mask_colored[defect_mask_resized > 0] = [0, 0, 255]
@@ -158,7 +157,7 @@ class RealtimeCameraWorker(QThread):
                         mask_colored, 0.3,
                         0
                     )
-                
+
                 # Рисуем контур зоны
                 cv2.rectangle(result, (x, y), (x+w, y+h), (0, 255, 0), 2)
                 cv2.putText(
@@ -233,15 +232,17 @@ class ContinuousCameraWorker(QThread):
             self.progress.emit("🔍 Запуск непрерывного мониторинга...")
             
             self.camera_thread = CameraCapture(self.camera_id)
-            self.camera_thread.frame_captured.connect(self.monitor_frame)
+            self.camera_thread.frame_captured.connect(
+                self.monitor_frame,
+                Qt.ConnectionType.QueuedConnection
+            )
             self.camera_thread.error.connect(self.on_camera_error)
             self.camera_thread.start()
-            
+
             self.is_running = True
             self.camera_thread.wait()
             
         except Exception as e:
-            import traceback
             self.error.emit(f"Ошибка: {str(e)}\n{traceback.format_exc()}")
     
     def monitor_frame(self, frame):
@@ -259,10 +260,10 @@ class ContinuousCameraWorker(QThread):
             # Быстрая проверка на дефекты
             img_gray = convert_to_grayscale(frame)
             contours = find_top_zones(img_gray, top_n=1)
-            
+
             if not contours:
                 return
-            
+
             x, y, w, h = cv2.boundingRect(contours[0])
             roi = img_gray[y:y+h, x:x+w]
             
@@ -271,7 +272,8 @@ class ContinuousCameraWorker(QThread):
             
             # Нормализация и предобработка
             roi = apply_histogram_normalization(roi)
-            roi_processed = preprocess_for_detection(roi, target_size=(256, 256))
+            _model_size = self.params.get('model_size', 256)
+            roi_processed, pad_info = preprocess_for_detection(roi, target_size=(_model_size, _model_size))
             
             # Детекция
             defect_mask = predict_defects(

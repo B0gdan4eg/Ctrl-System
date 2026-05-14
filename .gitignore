@@ -4,7 +4,6 @@ __pycache__/
 *$py.class
 *.so
 .Python
-build/
 develop-eggs/
 dist/
 downloads/
@@ -32,6 +31,9 @@ env/
 # IDE
 .vscode/
 .idea/
+
+# Claude Code memory
+.claude/
 *.swp
 *.swo
 *~
@@ -108,8 +110,21 @@ coverage.xml
 .hypothesis/
 
 # Documentation builds
-docs/_build/
 site/
+venv38/
+venv311/
+build/
+dist/
+dist win/
+
+# PyInstaller artifacts
+*.spec
+*.dll
+*.exe
+
+# Web app runtime folders
+uploads/
+results/
 
 # Environment variables
 .env

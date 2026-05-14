@@ -618,7 +618,7 @@ class DefectDetectionApp(QMainWindow):
         size_layout.addWidget(QLabel("Размер для модели:"))
         self.size_combo = QComboBox()
         self.size_combo.addItems(["256", "512", "1024"])
-        self.size_combo.setCurrentText("512")
+        self.size_combo.setCurrentText("1024")
         size_layout.addWidget(self.size_combo)
         params_layout.addLayout(size_layout)
         
@@ -785,7 +785,7 @@ class DefectDetectionApp(QMainWindow):
             # Попытка загрузить веса если есть
             model_path = Path('best_model.pth')
             if model_path.exists():
-                checkpoint = torch.load(model_path, map_location=self.device)
+                checkpoint = torch.load(model_path, map_location=self.device, weights_only=True)
                 self.model.load_state_dict(checkpoint['model_state_dict'])
                 self.log(f"✅ Модель загружена из {model_path}")
             else:

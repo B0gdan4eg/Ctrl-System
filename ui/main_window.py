@@ -3,6 +3,7 @@
 """
 
 import cv2
+import tempfile
 import torch
 from pathlib import Path
 from datetime import datetime
@@ -19,7 +20,9 @@ from config.settings import (
 )
 from models import UNet
 from workers import ProcessingWorker
+from core import apply_defects_overlay
 from .widgets import ImageViewer, ControlPanel, StatsPanel
+from .widgets.camera_widget import CameraWidget
 from .styles.dark_theme import get_dark_theme
 
 
@@ -31,13 +34,16 @@ class DefectDetectionApp(QMainWindow):
         self.current_image_path = None
         self.model = None
         self.device = None
+        self.model_loaded = False
         self.result_image = None
+        self.clean_image = None
+        self.defects_mask = None
+        self.contours = None
         self.stats = None
         self.worker = None
-        
+
         self.init_ui()
         self.apply_style()
-        self.load_model()
         
     def init_ui(self):
         """Инициализация пользовательского интерфейса"""
@@ -62,6 +68,7 @@ class DefectDetectionApp(QMainWindow):
         self.control_panel.load_image_clicked.connect(self.load_image)
         self.control_panel.start_processing_clicked.connect(self.start_processing)
         self.control_panel.save_result_clicked.connect(self.save_result)
+        self.control_panel.show_defects_changed.connect(self._on_show_defects_toggled)
         left_layout.addWidget(self.control_panel)
         
         # Панель статистики и логов
@@ -84,7 +91,6 @@ class DefectDetectionApp(QMainWindow):
         self.tabs.addTab(self.original_viewer, "🖼️ Оригинал")
         
         # Tab 3: Камера
-        from .widgets.camera_widget import CameraWidget
         self.camera_widget = CameraWidget()
         self.camera_widget.snapshot_taken.connect(self.on_camera_snapshot)
         self.tabs.addTab(self.camera_widget, "📷 Камера")
@@ -95,7 +101,7 @@ class DefectDetectionApp(QMainWindow):
         splitter.addWidget(left_panel)
         splitter.addWidget(right_panel)
         splitter.setStretchFactor(0, 1)
-        splitter.setStretchFactor(1, 2)
+        splitter.setStretchFactor(1, 3)
         
         # Статус бар
         self.statusBar().showMessage("Готов к работе")
@@ -116,29 +122,64 @@ class DefectDetectionApp(QMainWindow):
                 features=MODEL_FEATURES
             )
             self.model = self.model.to(self.device)
-            
-            # Попытка загрузить веса
-            model_path = Path(MODEL_PATH)
+
+            # Попытка загрузить веса (resource_path = поддержка PyInstaller _MEIPASS)
+            from utils import resource_path
+            model_path = resource_path(MODEL_PATH)
             if model_path.exists():
-                checkpoint = torch.load(model_path, map_location=self.device)
+                checkpoint = torch.load(model_path, map_location=self.device, weights_only=True)
                 self.model.load_state_dict(checkpoint['model_state_dict'])
                 self.stats_panel.log(f"✅ Модель загружена из {model_path}")
             else:
                 self.stats_panel.log("⚠️ Веса модели не найдены, используется неинициализированная модель")
                 self.stats_panel.log(f"   Поместите файл '{MODEL_PATH}' в текущую директорию")
-            
+
             self.model.eval()
+            self._apply_device_optimizations()
             device_name = "GPU" if torch.cuda.is_available() else "CPU"
             self.stats_panel.log(f"✅ Модель готова (устройство: {device_name})")
-            
+
+            # Модель успешно загружена
+            self.model_loaded = True
+
         except Exception as e:
             self.stats_panel.log(f"❌ Ошибка загрузки модели: {str(e)}")
+            self.model = None
+            self.model_loaded = False
             QMessageBox.critical(
                 self,
                 "Ошибка",
                 f"Не удалось загрузить модель:\n{str(e)}"
             )
-    
+
+    def _apply_device_optimizations(self):
+        """Подбирает оптимизации под текущее устройство (CUDA / CPU стенд)."""
+        if self.device.type == 'cuda':
+            # channels_last: bit-identical, ускоряет conv на NHWC-friendly GPU
+            self.model = self.model.to(memory_format=torch.channels_last)
+            return
+
+        # CPU стенд — выжимаем максимум на чистом torch (без torch.compile —
+        # на Windows он требует MSVC build tools).
+        import os
+        n_threads = os.cpu_count() or 4
+        torch.set_num_threads(n_threads)
+        try:
+            torch.set_num_interop_threads(max(2, n_threads // 2))
+        except RuntimeError:
+            # set_num_interop_threads нельзя вызывать после первого parallel-вызова
+            pass
+        if hasattr(torch.backends, 'mkldnn'):
+            torch.backends.mkldnn.enabled = True
+        # channels_last на CPU тоже ускоряет conv'ы с oneDNN/MKL-DNN
+        try:
+            self.model = self.model.to(memory_format=torch.channels_last)
+        except Exception:
+            pass
+        self.stats_panel.log(
+            f"⚙️ CPU: {n_threads} threads, MKL-DNN + channels_last"
+        )
+
     def load_image(self):
         """Загрузка изображения"""
         file_path, _ = QFileDialog.getOpenFileName(
@@ -168,17 +209,21 @@ class DefectDetectionApp(QMainWindow):
     def start_processing(self, params: dict):
         """
         Запуск обработки изображения
-        
+
         Args:
             params: Параметры обработки
         """
         if self.current_image_path is None:
             QMessageBox.warning(self, "Ошибка", "Сначала загрузите изображение")
             return
-        
-        if self.model is None:
-            QMessageBox.warning(self, "Ошибка", "Модель не загружена")
-            return
+
+        # Lazy loading модели - загружаем только при первой обработке
+        if not self.model_loaded:
+            self.stats_panel.log("⏳ Первый запуск - загрузка модели...")
+            self.load_model()
+            if self.model is None:
+                QMessageBox.warning(self, "Ошибка", "Не удалось загрузить модель")
+                return
         
         self.stats_panel.log("="*50)
         self.stats_panel.log("ЗАПУСК ОБРАБОТКИ")
@@ -192,6 +237,13 @@ class DefectDetectionApp(QMainWindow):
         self.control_panel.set_controls_enabled(False)
         self.control_panel.show_progress(True)
         
+        # Остановить старый воркер если запущен
+        if hasattr(self, 'worker') and self.worker is not None and self.worker.isRunning():
+            self.worker.terminate()
+            self.worker.wait(3000)
+            self.worker.deleteLater()
+            self.worker = None
+
         # Создаем и запускаем worker
         self.worker = ProcessingWorker(
             self.current_image_path,
@@ -222,20 +274,18 @@ class DefectDetectionApp(QMainWindow):
                 f"   Zone {zone_num}: найдено {defect_pixels} пикселей дефектов"
             )
     
-    def on_processing_finished(self, result_image, stats: dict):
+    def on_processing_finished(self, clean_image, defects_mask, stats: dict, contours):
         """
-        Обработчик завершения обработки
-        
-        Args:
-            result_image: Результат обработки
-            stats: Статистика
+        Обработчик завершения обработки. Хранит «чистое» изображение и маску
+        отдельно, чтобы рисовать overlay по чекбоксу без повторного прогона модели.
         """
-        self.result_image = result_image
+        self.clean_image = clean_image
+        self.defects_mask = defects_mask
         self.stats = stats
-        
-        # Отображаем результат
-        self.result_viewer.display_image(result_image)
-        
+        self.contours = contours
+
+        self._redraw_result()
+
         # Обновляем статистику
         self.stats_panel.update_statistics(stats)
         
@@ -255,6 +305,19 @@ class DefectDetectionApp(QMainWindow):
             f"✅ Готово | Зон: {stats['zones_found']} | С дефектами: {stats['zones_with_defects']}"
         )
     
+    def _redraw_result(self):
+        """Перерисовывает result_viewer: clean + опциональный defects overlay."""
+        if self.clean_image is None:
+            return
+        if self.control_panel.is_show_defects() and self.defects_mask is not None:
+            self.result_image = apply_defects_overlay(self.clean_image, self.defects_mask)
+        else:
+            self.result_image = self.clean_image
+        self.result_viewer.display_image(self.result_image)
+
+    def _on_show_defects_toggled(self, _checked: bool):
+        self._redraw_result()
+
     def on_processing_error(self, error_msg: str):
         """
         Обработчик ошибки при обработке
@@ -291,6 +354,12 @@ class DefectDetectionApp(QMainWindow):
         )
         
         if file_path:
+            from pathlib import Path as _Path
+            _ALLOWED_EXT = {'.png', '.jpg', '.jpeg', '.tiff', '.bmp'}
+            _save_path = _Path(file_path)
+            if _save_path.suffix.lower() not in _ALLOWED_EXT:
+                _save_path = _save_path.with_suffix('.png')
+                file_path = str(_save_path)
             success = cv2.imwrite(file_path, self.result_image)
             if success:
                 self.stats_panel.log(f"💾 Результат сохранен: {file_path}")
@@ -310,19 +379,16 @@ class DefectDetectionApp(QMainWindow):
     def on_camera_snapshot(self, snapshot):
         """
         Обработчик снимка с камеры
-        
+
         Args:
             snapshot: Изображение с камеры
         """
-        import tempfile
-        from datetime import datetime
-        
-        # Создаем временный файл
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        temp_path = Path(tempfile.gettempdir()) / f"camera_snapshot_{timestamp}.png"
-        
-        # Сохраняем снимок
-        import cv2
+        import os as _os
+        _app_temp_dir = Path(_os.path.dirname(_os.path.abspath(__file__))).parent / "temp"
+        _app_temp_dir.mkdir(exist_ok=True)
+        temp_path = _app_temp_dir / f"camera_snapshot_{timestamp}.png"
+
         cv2.imwrite(str(temp_path), snapshot)
         
         # Устанавливаем как текущее изображение

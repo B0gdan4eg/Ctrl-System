@@ -3,6 +3,7 @@
 """
 
 import logging
+import re
 from pathlib import Path
 from datetime import datetime
 
@@ -10,14 +11,17 @@ from datetime import datetime
 def setup_logger(name: str = "defect_detection", log_dir: str = "logs") -> logging.Logger:
     """
     Настраивает логгер для приложения
-    
+
     Args:
         name: Имя логгера
         log_dir: Директория для логов
-        
+
     Returns:
         Настроенный логгер
     """
+    # Санация имени для использования в пути файла
+    name = re.sub(r'[^a-zA-Z0-9_\-]', '_', name)
+
     # Создаем директорию для логов
     log_path = Path(log_dir)
     log_path.mkdir(exist_ok=True)
