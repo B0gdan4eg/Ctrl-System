@@ -2,7 +2,6 @@
 Главное окно приложения
 """
 
-import cv2
 import tempfile
 import torch
 from pathlib import Path
@@ -20,7 +19,7 @@ from config.settings import (
 )
 from models import UNet
 from workers import ProcessingWorker
-from core import apply_defects_overlay
+from core import apply_defects_overlay, imread_unicode, imwrite_unicode
 from .widgets import ImageViewer, ControlPanel, StatsPanel
 from .widgets.camera_widget import CameraWidget
 from .styles.dark_theme import get_dark_theme
@@ -195,7 +194,7 @@ class DefectDetectionApp(QMainWindow):
             self.stats_panel.log(f"📂 Загружен файл: {self.current_image_path.name}")
             
             # Отображаем оригинал
-            img = cv2.imread(str(self.current_image_path))
+            img = imread_unicode(self.current_image_path)
             if img is not None:
                 self.original_viewer.display_image(img)
                 self.control_panel.set_processing_enabled(True)
@@ -360,7 +359,7 @@ class DefectDetectionApp(QMainWindow):
             if _save_path.suffix.lower() not in _ALLOWED_EXT:
                 _save_path = _save_path.with_suffix('.png')
                 file_path = str(_save_path)
-            success = cv2.imwrite(file_path, self.result_image)
+            success = imwrite_unicode(file_path, self.result_image)
             if success:
                 self.stats_panel.log(f"💾 Результат сохранен: {file_path}")
                 QMessageBox.information(
@@ -389,7 +388,7 @@ class DefectDetectionApp(QMainWindow):
         _app_temp_dir.mkdir(exist_ok=True)
         temp_path = _app_temp_dir / f"camera_snapshot_{timestamp}.png"
 
-        cv2.imwrite(str(temp_path), snapshot)
+        imwrite_unicode(temp_path, snapshot)
         
         # Устанавливаем как текущее изображение
         self.current_image_path = temp_path

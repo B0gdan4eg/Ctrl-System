@@ -23,18 +23,12 @@ if sys.platform == "win32":
 from PySide6.QtWidgets import QApplication
 from PySide6.QtGui import QIcon
 from ui import DefectDetectionApp
-from utils import app_logger
+from utils import app_logger, resource_path
 
 
 def get_resource_path(relative_path):
     """Получить абсолютный путь к ресурсу (работает для dev и PyInstaller)"""
-    try:
-        # PyInstaller создает временную папку и сохраняет путь в _MEIPASS
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
-
-    return os.path.join(base_path, relative_path)
+    return resource_path(relative_path)
 
 
 def main():
@@ -51,7 +45,7 @@ def main():
         # Установка иконки приложения
         icon_path = get_resource_path('icon.ico')
         if os.path.exists(icon_path):
-            app.setWindowIcon(QIcon(icon_path))
+            app.setWindowIcon(QIcon(str(icon_path)))
             app_logger.info(f"Иконка приложения установлена: {icon_path}")
         else:
             app_logger.warning(f"Файл иконки не найден: {icon_path}")

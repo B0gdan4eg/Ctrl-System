@@ -26,6 +26,7 @@ from core import (
     prepare_for_display,
     prepare_zone_tiles,
     stitch_tile_probs,
+    imread_unicode,
 )
 from core.zone_segmentation import ZoneSegmenter
 from config.settings import ZONE_MODEL_PATH, USE_AI_ZONE_DETECTION, PIXEL_SIZE_MM
@@ -88,7 +89,7 @@ class ProcessingWorker(QThread):
             self.progress.emit("📂 Загрузка изображения...")
             
             # Загрузка
-            img = cv2.imread(str(self.image_path), cv2.IMREAD_UNCHANGED)
+            img = imread_unicode(self.image_path, cv2.IMREAD_UNCHANGED)
             if img is None:
                 self.error.emit(f"Ошибка загрузки: {self.image_path}")
                 return

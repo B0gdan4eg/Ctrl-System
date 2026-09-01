@@ -11,6 +11,8 @@ from .image_processing import (
     prepare_for_display,
     prepare_zone_tiles,
     stitch_tile_probs,
+    imread_unicode,
+    imwrite_unicode,
 )
 
 from .zone_detection import (
@@ -60,6 +62,8 @@ __all__ = [
     'prepare_for_display',
     'prepare_zone_tiles',
     'stitch_tile_probs',
+    'imread_unicode',
+    'imwrite_unicode',
     'find_top_zones',
     'find_top_zones_improved',
     'extract_zone_roi',

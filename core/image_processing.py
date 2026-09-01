@@ -2,6 +2,8 @@
 Модуль для обработки изображений (нормализация, предобработка)
 """
 
+import os
+
 import cv2
 import numpy as np
 from typing import Tuple
@@ -325,3 +327,52 @@ def prepare_for_display(image: np.ndarray) -> np.ndarray:
         else:
             _img_u8 = image
         return cv2.cvtColor(_img_u8, cv2.COLOR_BGR2RGB)
+
+
+def imread_unicode(path, flags=cv2.IMREAD_COLOR):
+    """
+    Читает изображение по пути с любыми Unicode-символами (кириллица, № и т.д.)
+
+    cv2.imread на Windows использует ANSI-кодировку и возвращает None
+    для путей с не-ASCII символами, поэтому читаем через np.fromfile + imdecode.
+
+    Args:
+        path: Путь к файлу (str или Path)
+        flags: Флаги cv2 (IMREAD_COLOR, IMREAD_UNCHANGED, IMREAD_GRAYSCALE...)
+
+    Returns:
+        Изображение numpy или None, если файл не прочитан
+    """
+    try:
+        data = np.fromfile(str(path), dtype=np.uint8)
+    except (OSError, IOError):
+        return None
+    if data.size == 0:
+        return None
+    return cv2.imdecode(data, flags)
+
+
+def imwrite_unicode(path, image, params=None):
+    """
+    Сохраняет изображение по пути с любыми Unicode-символами (кириллица, № и т.д.)
+
+    cv2.imwrite на Windows использует ANSI-кодировку и молча не создаёт файл
+    для путей с не-ASCII символами, поэтому пишем через imencode + np.tofile.
+
+    Args:
+        path: Путь к файлу (str или Path)
+        image: Изображение numpy
+        params: Дополнительные параметры cv2.imencode (например [cv2.IMWRITE_JPEG_QUALITY, 95])
+
+    Returns:
+        True, если файл сохранён
+    """
+    ext = os.path.splitext(str(path))[1] or '.png'
+    try:
+        ok, buf = cv2.imencode(ext, image, params)
+        if not ok:
+            return False
+        buf.tofile(str(path))
+        return True
+    except (OSError, IOError, cv2.error):
+        return False
