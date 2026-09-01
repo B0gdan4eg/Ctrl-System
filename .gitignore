@@ -54,6 +54,7 @@ pip-delete-this-directory.txt
 *.weights
 best_model.pth
 checkpoint.pth
+*.pth.backup
 
 # Data and results
 data/
@@ -140,3 +141,6 @@ results/
 *.tmp
 *.temp
 *.cache
+# Test samples and measurement data (WTS)
+test/Ðâ„–*/
+WTS */
