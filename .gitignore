@@ -1,146 +1,55 @@
-# Python
+# Python bytecode (регенерируется)
 __pycache__/
 *.py[cod]
 *$py.class
-*.so
-.Python
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-pip-wheel-metadata/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
 
-# Virtual Environment
+# Сборки
+build/
+dist/
+dist win/
+*.spec
+*.egg-info/
+*.egg
+
+# Виртуальные окружения (ставятся из requirements.txt)
 venv/
+venv38/
+venv311/
 ENV/
 env/
 .venv
 
-# IDE
+# IDE / OS
 .vscode/
 .idea/
+.DS_Store
+Thumbs.db
+desktop.ini
 
-# Claude Code memory
-.claude/
-*.swp
-*.swo
-*~
-.spyderproject
-.spyproject
-
-# Logs
-logs/
+# Логи (регенерируются при запуске)
+logs/*.log
 *.log
-pip-log.txt
-pip-delete-this-directory.txt
 
-# Model weights and checkpoints
-*.pth
-*.pt
-*.h5
-*.ckpt
-*.weights
-best_model.pth
-checkpoint.pth
-*.pth.backup
-
-# Data and results
-data/
-dataset/
-datasets/
-images/
-results/
-output/
-outputs/
-temp/
-tmp/
-
-*.jpg
-*.jpeg
-*.tif
-*.tiff
-*.bmp
-*.gif
-*.webp
-!docs/**/*.png
-!docs/**/*.jpg
-
-# Camera snapshots
+# Рантайм-снапшоты камеры (регенерируются)
 camera_*.png
 camera_*.jpg
 snapshot_*.png
 snapshot_*.jpg
 
-# OS
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-desktop.ini
+# Секреты
+.env
+.env.local
+.claude/.credentials.json
 
-# Jupyter
-.ipynb_checkpoints/
-*.ipynb
-
-# PyTorch
-*.pth.tar
-
-# Testing
+# Кэши тестов
 .pytest_cache/
 .coverage
 htmlcov/
-.tox/
-.nox/
-coverage.xml
-*.cover
-.hypothesis/
 
-# Documentation builds
-site/
-venv38/
-venv311/
-build/
-dist/
-dist win/
-
-# PyInstaller artifacts
-*.spec
-*.dll
-*.exe
-
-# Web app runtime folders
-uploads/
-results/
-
-# Environment variables
-.env
-.env.local
-.env.*.local
-
-# Database
-*.db
-*.sqlite
-*.sqlite3
-
-# Temporary files
+# Временные файлы и БД
 *.tmp
 *.temp
 *.cache
-# Test samples and measurement data (WTS)
-test/�№*/
-WTS */
+*.db
+*.sqlite
+*.sqlite3

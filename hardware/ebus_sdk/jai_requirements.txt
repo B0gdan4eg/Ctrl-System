@@ -1,0 +1,16 @@
+# JAI Camera Viewer - eBUS SDK Edition
+# Simplified requirements for eBUS-only version
+
+# Core dependencies
+numpy>=1.21.0,<2.0          # Array processing (must be <2.0 for eBUS compatibility)
+opencv-python>=4.5.0,<4.10  # Video display (compatible with numpy 1.x)
+
+# eBUS SDK Python API
+# Install manually from: https://www.jai.com/support-software/jai-software
+# Command: py -3.11 -m pip install ebus_python-6.5.4-7277_jai-py311-none-win_amd64.whl
+
+# Notes:
+# 1. eBUS SDK Python API is REQUIRED and must be installed separately
+# 2. Download the wheel file from JAI website
+# 3. NumPy must be version 1.x (not 2.x) for eBUS SDK compatibility
+# 4. Python 3.11 is recommended for best compatibility
